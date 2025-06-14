@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solana Key Trainer</title>
+  <style>
+    body {
+      background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #fad0c4, #fbc2eb);
+      background-size: 400% 400%;
+      animation: gradientBG 10s ease infinite;
+      color: #222;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      padding: 16px;
+    }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 12px;
+    }
+    h2 {
+      font-size: 1.2rem;
+      margin: 24px 0 12px;
+    }
+    .segment {
+      display: inline-block;
+      padding: 10px;
+      margin: 4px;
+      background: #fff;
+      border: 2px solid #4caf50;
+      border-radius: 8px;
+      cursor: pointer;
+      touch-action: manipulation;
+      font-weight: bold;
+      color: #4caf50;
+      font-size: 14px;
+      word-break: break-word;
+    }
+    .segment.selected {
+      background: #4caf50;
+      color: #fff;
+    }
+    .slots {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+      max-width: 320px;
+      margin-inline: auto;
+    }
+    @media (min-width: 480px) {
+      .slots {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+    .slot {
+      padding: 12px;
+      border: 2px dashed #2196f3;
+      border-radius: 8px;
+      min-height: 38px;
+      position: relative;
+      background: rgba(255, 255, 255, 0.8);
+      font-weight: bold;
+      color: #2196f3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      word-break: break-word;
+    }
+    .slot::before {
+      content: attr(data-index);
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 16px;
+      font-weight: bold;
+      color: #2196f3;
+      opacity: 0.3;
+    }
+    button {
+      margin: 16px 6px 0;
+      padding: 10px 16px;
+      background: #ff9800;
+      color: #fff;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      touch-action: manipulation;
+      font-size: 14px;
+    }
+    #keyDisplay {
+      margin-bottom: 16px;
+      word-wrap: break-word;
+      font-size: 14px;
+      color: #000;
+      background: rgba(255,255,255,0.6);
+      padding: 8px;
+      border-radius: 6px;
+    }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧠 Solana Key Trainer</h1>
+  <div id="keyDisplay"></div>
+  <div id="segments"></div>
+
+  <h2>▼ RECONSTRUCT THE KEY ▼</h2>
+  <div class="slots" id="slots"></div>
+
+  <button onclick="checkKey()">CHECK</button>
+  <button id="nextRoundBtn" onclick="newRound()" style="display:none;">NEXT ROUND</button>
+  <canvas id="confettiCanvas"></canvas>
+
+  <script>
+    let key = "";
+    let chunks = [];
+    const segmentsDiv = document.getElementById('segments');
+    const slotsDiv = document.getElementById('slots');
+    const keyDisplay = document.getElementById('keyDisplay');
+    const nextRoundBtn = document.getElementById('nextRoundBtn');
+    let selected = null;
+
+    function generateRandomHex(len) {
+      const hex = [];
+      const chars = "abcdef0123456789";
+      for (let i = 0; i < len; i++) {
+        hex.push(chars[Math.floor(Math.random() * chars.length)]);
+      }
+      return hex.join("");
+    }
+
+    function splitHex(hex) {
+      const out = [];
+      for (let i = 0; i < 64; i += 8) {
+        out.push(hex.slice(i, i + 8));
+      }
+      return out;
+    }
+
+    function shuffle(arr) {
+      return arr.map(a => [Math.random(), a])
+                .sort((a, b) => a[0] - b[0])
+                .map(a => a[1]);
+    }
+
+    function initGame() {
+      key = generateRandomHex(64);
+      keyDisplay.innerText = key;
+      chunks = splitHex(key);
+      shuffleAndRender();
+    }
+
+    function newRound() {
+      nextRoundBtn.style.display = 'none';
+      initGame();
+    }
+
+    function shuffleAndRender() {
+      selected = null;
+      chunks = shuffle([...chunks]);
+      renderGame();
+    }
+
+    function renderGame() {
+      segmentsDiv.innerHTML = "";
+      slotsDiv.innerHTML = "";
+
+      chunks.forEach((chunk, i) => {
+        const div = document.createElement('div');
+        div.className = 'segment';
+        div.innerText = chunk;
+        div.onclick = () => selectChunk(i, div);
+        segmentsDiv.appendChild(div);
+      });
+
+      for (let i = 0; i < 8; i++) {
+        const div = document.createElement('div');
+        div.className = 'slot';
+        div.setAttribute('data-index', i + 1);
+        div.onclick = () => placeInSlot(i);
+        slotsDiv.appendChild(div);
+      }
+    }
+
+    function selectChunk(index, el) {
+      document.querySelectorAll('.segment').forEach(s => s.classList.remove('selected'));
+      selected = index;
+      el.classList.add('selected');
+    }
+
+    function placeInSlot(slotIndex) {
+      if (selected === null) return;
+      const slot = slotsDiv.children[slotIndex];
+      if (slot.innerText) return;
+      slot.innerText = chunks[selected];
+      document.querySelectorAll('.segment')[selected].style.visibility = 'hidden';
+      selected = null;
+    }
+
+    function vibrateDevice() {
+      if (navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+    }
+
+    function checkKey() {
+      const inputKey = Array.from(slotsDiv.children).map(div => div.innerText).join('');
+      if (inputKey === key) {
+        launchConfetti();
+        alert('✅ Correct!');
+        nextRoundBtn.style.display = 'inline-block';
+      } else {
+        vibrateDevice();
+        alert('❌ Incorrect. Try again!');
+        shuffleAndRender();
+      }
+    }
+
+    function launchConfetti() {
+      const canvas = document.getElementById('confettiCanvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = Array.from({ length: 150 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 6 + 4,
+        d: Math.random() * 10 + 10,
+        color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+        tilt: Math.random() * 10 - 10,
+        tiltAngle: 0
+      }));
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          ctx.beginPath();
+          ctx.lineWidth = p.r;
+          ctx.strokeStyle = p.color;
+          ctx.moveTo(p.x + p.tilt + p.r / 2, p.y);
+          ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 2);
+          ctx.stroke();
+        });
+        update();
+      }
+
+      function update() {
+        particles.forEach(p => {
+          p.y += Math.cos(p.d) + 1 + p.r / 2;
+          p.tiltAngle += 0.1;
+          p.tilt = Math.sin(p.tiltAngle) * 10;
+        });
+      }
+
+      let interval = setInterval(draw, 20);
+      setTimeout(() => clearInterval(interval), 3000);
+    }
+
+    initGame();
+  </script>
+</body>
+</html>
