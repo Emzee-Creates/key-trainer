@@ -59,7 +59,7 @@
       }
     }
     .slot {
-      padding: 12px;
+      padding: 24px 8px 8px;
       border: 2px dashed #2196f3;
       border-radius: 8px;
       min-height: 38px;
@@ -76,10 +76,10 @@
     .slot::before {
       content: attr(data-index);
       position: absolute;
-      top: 50%;
+      top: 8px;
       left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 16px;
+      transform: translateX(-50%);
+      font-size: 14px;
       font-weight: bold;
       color: #2196f3;
       opacity: 0.3;
@@ -105,6 +105,12 @@
       padding: 8px;
       border-radius: 6px;
     }
+    #timer {
+      font-size: 16px;
+      font-weight: bold;
+      color: #d32f2f;
+      margin-top: 8px;
+    }
     canvas {
       position: fixed;
       top: 0;
@@ -117,12 +123,15 @@
 <body>
   <h1>🧠 Solana Key Trainer</h1>
   <div id="keyDisplay"></div>
+  <div id="timer">⏱ Time: 0.00s</div>
+  <button onclick="startRound()">START ROUND</button>
   <div id="segments"></div>
 
   <h2>▼ RECONSTRUCT THE KEY ▼</h2>
   <div class="slots" id="slots"></div>
 
   <button onclick="checkKey()">CHECK</button>
+  <button onclick="endRound()">END ROUND</button>
   <button id="nextRoundBtn" onclick="newRound()" style="display:none;">NEXT ROUND</button>
   <canvas id="confettiCanvas"></canvas>
 
@@ -132,8 +141,11 @@
     const segmentsDiv = document.getElementById('segments');
     const slotsDiv = document.getElementById('slots');
     const keyDisplay = document.getElementById('keyDisplay');
+    const timerDisplay = document.getElementById('timer');
     const nextRoundBtn = document.getElementById('nextRoundBtn');
     let selected = null;
+    let timerInterval;
+    let startTime;
 
     function generateRandomHex(len) {
       const hex = [];
@@ -158,16 +170,24 @@
                 .map(a => a[1]);
     }
 
-    function initGame() {
+    function startRound() {
       key = generateRandomHex(64);
       keyDisplay.innerText = key;
       chunks = splitHex(key);
       shuffleAndRender();
+      startTimer();
     }
 
     function newRound() {
       nextRoundBtn.style.display = 'none';
-      initGame();
+      stopTimer();
+      startRound();
+    }
+
+    function endRound() {
+      stopTimer();
+      alert(`🚫 Round ended. The correct key was:\n${key}`);
+      nextRoundBtn.style.display = 'inline-block';
     }
 
     function shuffleAndRender() {
@@ -221,14 +241,27 @@
     function checkKey() {
       const inputKey = Array.from(slotsDiv.children).map(div => div.innerText).join('');
       if (inputKey === key) {
+        stopTimer();
         launchConfetti();
-        alert('✅ Correct!');
+        alert(`✅ Correct! Time: ${timerDisplay.innerText.split(': ')[1]}`);
         nextRoundBtn.style.display = 'inline-block';
       } else {
         vibrateDevice();
         alert('❌ Incorrect. Try again!');
         shuffleAndRender();
       }
+    }
+
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+        timerDisplay.innerText = `⏱ Time: ${elapsed}s`;
+      }, 50);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
     }
 
     function launchConfetti() {
@@ -271,8 +304,6 @@
       let interval = setInterval(draw, 20);
       setTimeout(() => clearInterval(interval), 3000);
     }
-
-    initGame();
   </script>
 </body>
 </html>
